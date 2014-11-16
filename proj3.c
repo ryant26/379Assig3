@@ -13,18 +13,22 @@ int main (){
 	get_number_of_each_resource(&sim);
 	get_number_of_processes(&sim);
 	get_details_for_procs(&sim);
+	validate_processes(&sim);
+	run_simulation(&sim);
+	return 0;
 }
 
-process * create_proc_list(int number){
+process ** create_proc_list(int number){
 	return malloc(number * sizeof(process *));
 }
 
 process * init_process(int totServiceTime, int *reqResources, int numResources){
 	process * proc = malloc(sizeof(process));
 	proc->totalServiceTime = totServiceTime;
-	proc->remainingServiceTime = 0;
+	proc->remainingServiceTime = totServiceTime;
 	proc->resources = reqResources;
 	proc->numberResources = numResources;
+	return proc;
 }
 
 void free_all_processes(process *proc, int numberOfProc){
@@ -100,17 +104,24 @@ void get_number_of_each_resource(simulation *sim){
 
 void get_number_of_processes(simulation *sim){
 	printf("Please input the number of processes\n");
-	get_single_number(&(sim->numberOfProcesses));
+	while (1){
+		if (!get_single_number(&(sim->numberOfProcesses))){
+			printf("invalid, please try again:\n");
+			continue;
+		}
+		break;
+	}	
 }
 
 void get_details_for_procs(simulation * sim){
 	int numberResc = sim->numberResources;
 	int i;
-	int *resc = malloc(sizeof(int) * (numberResc +2));
+	int *resc;
 	sim->processes = create_proc_list(sim->numberOfProcesses);
 
 
 	for (i =0; i<sim->numberOfProcesses; i++){
+		resc = malloc(sizeof(int) * (numberResc +2));
 		printf("Please enter number of resources needed in the form\n");
 		printf("<A> <B> ... <N> <ArrivalTime> <ServiceTime> for P%d:\n", i);
 		while (1){
@@ -124,11 +135,217 @@ void get_details_for_procs(simulation * sim){
 	}
 }
 
+void print_simulation_time(simulation * sim){
+	static int lastTime = -1;
+	if (sim->simulationTime != lastTime){
+		printf("Simulation time: %d\n", sim->simulationTime);
+		lastTime = sim->simulationTime;
+
+		print_system_status(sim);
+	}
+}
+
+void print_process_arrived(int num){
+	printf("Process P%d has just arrived in the system.\n", num);
+}
+
+void print_process_started(int num){
+	printf("Process P%d has just started execution.\n", num);
+}
+
+void print_process_finished(int num){
+	printf("Process P%d has just finished.\n", num);
+}
+
+void print_process_idle(int num){
+	printf("Process P%d is idle.\n", num);
+}
+
+void print_process_running(int num){
+	printf("Process P%d is running.\n", num);
+}
+
+void print_simulation_summary(simulation *sim){
+	int i;
+	printf("\n");
+	printf("\n");
+	for (i = 0; i <  sim->numberOfProcesses; i++){
+		process * currProc = sim->processes[i];
+		if (currProc->procStatus == INVALID || currProc->procStatus == IARRIVED){
+			printf("No processes are running.\n");
+			printf("Available resources are insufficient to run\n");
+			printf("any idle process. System is halted.\n");
+			printf("Simulation ended.\n");
+			return;
+		}
+	}
+
+	printf("No processes are available for execution\n");
+	printf("System is idle.\n");
+	printf("Simulation ended\n");
+}
+
+void print_system_status(simulation * sim){
+	int i;
+	for (i = 0; i < sim->numberOfProcesses; i++){
+		process * currProc = sim->processes[i];
+		if ((currProc->procStatus == ARRIVED || currProc->procStatus == IARRIVED)
+			&& sim->simulationTime > (currProc->resources)[currProc->numberResources - 2]){
+			print_process_idle(i);
+		} else if (currProc ->procStatus == STARTED 
+			&& currProc->remainingServiceTime < currProc->totalServiceTime){
+			print_process_running(i);
+		}
+	}
+}
+
+void validate_processes(simulation *sim){
+	int i;
+	for (i =0; i < sim->numberOfProcesses; i++){
+		validate_process((sim->processes)[i], sim);
+	}
+}
+
+void validate_process(process * proc, simulation * sim){
+	int i;
+
+	if (proc->totalServiceTime < 0){
+		proc->procStatus = INVALID;
+		return;
+	}
+
+	for (i = 0; i < sim->numberResources; i++){
+		if (proc->resources[i] > sim->resources[i]){
+			proc->procStatus = INVALID;
+			return;
+		}
+	}
+	proc->procStatus = UNARRIVED;
+}
+
 void flush_stdin(){
 	int a;
 	while ((a =getchar()) != '\n'){
 		if(a == EOF){
 			break;
+		}
+	}
+}
+
+void run_simulation(simulation * sim){
+	while(!simulation_over(sim)){
+		step_simulation(sim);
+	}
+	print_simulation_summary(sim);
+}
+
+void step_simulation(simulation * sim){
+	finish_processes(sim);
+	check_for_arrived_proc(sim);
+	start_processes(sim);
+	step_processes(sim);
+	sim->simulationTime++;
+}
+
+int simulation_over(simulation * sim){
+	static int j = 0;
+	j++;
+	if (!processes_running(sim) && no_more_processes(sim)){
+		return 1;
+	} 
+	return 0;
+}
+
+int processes_running(simulation *sim){
+	int i;
+	for (i = 0; i < sim->numberOfProcesses; i++){
+		if (((sim->processes)[i])->procStatus == STARTED){
+			return 1;
+		}
+	}
+	return 0;
+}
+
+int no_more_processes(simulation *sim){
+	int i;
+	for (i = 0; i < sim->numberOfProcesses; i++){
+		status procStat = ((sim->processes)[i])->procStatus;
+		if (procStat != INVALID && procStat != FINISHED && procStat != IARRIVED){
+			return 0;
+		}
+	}
+	return 1;
+}
+
+int can_start_process(simulation *sim, process *proc){
+	int i;
+	if (proc->procStatus == ARRIVED){
+		for (i = 0; i < sim->numberResources; i++){
+			if ((proc->resources)[i] > (sim->resources)[i]){
+				return 0;
+			}
+		}
+		return 1;
+	}
+	return 0;
+}
+
+void check_for_arrived_proc(simulation *sim){
+	int i;
+	for (i = 0; i < sim->numberOfProcesses; i ++){
+		process * currProc = sim->processes[i];
+		if (currProc->procStatus == UNARRIVED || currProc->procStatus == INVALID){
+			if (sim->simulationTime >= (currProc->resources[sim->numberResources])){
+				if (currProc->procStatus != INVALID){
+					currProc->procStatus = ARRIVED;
+				} else {
+					currProc->procStatus = IARRIVED;
+				}
+				print_simulation_time(sim);
+				print_process_arrived(i);
+			}
+		}
+	}
+}
+
+void start_processes(simulation *sim){
+	int i;
+	for (i = 0; i < sim->numberOfProcesses; i ++){
+		process * currProc = sim->processes[i];
+		if (can_start_process(sim, currProc)){
+			currProc->procStatus = STARTED;
+			print_simulation_time(sim);
+			print_process_started(i);
+			int j;
+			for (j = 0; j < sim->numberResources; j++){
+				(sim->resources)[j] -= (currProc->resources)[j];
+			}
+		}
+	}
+}
+
+void step_processes(simulation *sim){
+	int i;
+	for (i = 0; i <sim->numberOfProcesses; i++){
+		process * currProc = sim->processes[i];
+		if (currProc->procStatus == STARTED){
+			currProc->remainingServiceTime--;
+		}
+	}
+}
+ 	
+void finish_processes(simulation *sim){
+	int i;
+	for (i =0; i < sim->numberOfProcesses; i++){
+		process * currProc = sim->processes[i];
+		if (currProc->procStatus == STARTED && currProc-> remainingServiceTime <= 0){
+			currProc->procStatus = FINISHED;
+			print_simulation_time(sim);
+			print_process_finished(i);
+			int j;
+			for (j = 0; j < sim->numberResources; j++){
+				(sim->resources)[j] += (currProc->resources)[j];
+			}
 		}
 	}
 }
