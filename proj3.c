@@ -15,6 +15,7 @@ int main (){
 	get_details_for_procs(&sim);
 	validate_processes(&sim);
 	run_simulation(&sim);
+	free_resources(&sim);
 	return 0;
 }
 
@@ -348,4 +349,15 @@ void finish_processes(simulation *sim){
 			}
 		}
 	}
+}
+
+void free_resources(simulation *sim){
+	int i;
+	for (i = 0; i < sim->numberOfProcesses; i++){
+		process * currProc = sim->processes[i];
+		free(currProc->resources);
+		free(currProc);
+	}
+	free(sim->resources);
+	free(sim->processes);
 }

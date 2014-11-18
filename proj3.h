@@ -59,5 +59,6 @@ int simulation_over(simulation *);
 int processes_running(simulation *);
 int no_more_processes(simulation *);
 int can_start_process(simulation *, process *);
+void free_resources(simulation *);
 
 #endif
