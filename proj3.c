@@ -32,11 +32,6 @@ process * init_process(int totServiceTime, int *reqResources, int numResources){
 	return proc;
 }
 
-void free_all_processes(process *proc, int numberOfProc){
-	//TODO
-	printf("Method not implemented!\n");
-}
-
 void display_help(){
 	printf("Welcome to the Bankers Algorithm Simulator!\n");
 	printf("===========================================\n");
@@ -46,8 +41,10 @@ void display_help(){
 int get_single_number(int * buffer){
 	int num;
 	char term;
-	if (scanf("%d%c", &num, &term) != 2 || term != '\n'){
-		flush_stdin();
+	if (scanf("%d%c", &num, &term) != 2 || term != '\n' || num < 0){
+		if (term != '\n'){
+			flush_stdin();
+		}
 		return 0;
 	} else {
 		*buffer = num;
@@ -62,10 +59,12 @@ int get_list_of_numbers(int *out, int num){
 	int i;
 	for (i = 0; i < num; i++){
 		scanned = scanf("%d%c", &tok, &term);
-		if ((term != '\n' && term != ' ') || scanned != 2){
-			flush_stdin();
+		if ((term != '\n' && term != ' ') || scanned != 2 || tok < 0
+			|| ( i+1 == num && term != '\n')){
+			if (term != '\n') flush_stdin();
 			return 0;
 		}
+
 		out[i] = tok;
 	}
 	return 1;
@@ -85,7 +84,7 @@ void get_number_of_resources(simulation *sim){
 }
 
 void get_name_of_resources(int num, simulation *sim){
-	/* We never actually use the sames so I'm going to discard them */
+	/* We never actually use the names so I'm going to discard them */
 	printf("Please enter the names of the resources separated by spaces: \n");
 	flush_stdin();
 }
@@ -226,11 +225,7 @@ void validate_process(process * proc, simulation * sim){
 
 void flush_stdin(){
 	int a;
-	while ((a =getchar()) != '\n'){
-		if(a == EOF){
-			break;
-		}
-	}
+	while ((a =getchar()) != EOF && a !='\n' );
 }
 
 void run_simulation(simulation * sim){

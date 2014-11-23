@@ -29,7 +29,6 @@ typedef struct{
 
 process ** create_proc_list(int);
 process * init_process(int, int *, int);
-void free_all_processes(process *, int);
 void display_help();
 int get_single_number(int *);
 int get_list_of_numbers(int *, int);
