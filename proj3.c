@@ -266,7 +266,7 @@ int no_more_processes(simulation *sim){
 	int i;
 	for (i = 0; i < sim->numberOfProcesses; i++){
 		status procStat = ((sim->processes)[i])->procStatus;
-		if (procStat != INVALID && procStat != FINISHED && procStat != IARRIVED){
+		if (procStat != FINISHED && procStat != IARRIVED){
 			return 0;
 		}
 	}
